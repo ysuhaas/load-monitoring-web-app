@@ -2,12 +2,15 @@ $(document).ready(function () {
     // Connect to SocketIO server
     var socket = io.connect('http://' + document.domain + ':' + location.port);
     console.log('Connected to server!');
-    drawChart();
+    myChart = drawChart();
+
     //receive details from server
     socket.on('cpuUtil', function (msg) {
         console.log("Received new utilization datapoint: " + msg.util);
-        data = '' + '<p>' + msg.util.toString() + '</p>';
-        $('#data').html(data);
+        // Construct a moment time object for this timestamp
+
+        // Add to chart
+        addUtilDataPoint(msg, myChart);
     });
 });
 
@@ -16,40 +19,81 @@ function drawChart() {
     // do not resize the chart canvas when its container does (keep at 600x400px)
     Chart.defaults.global.responsive = true;
 
-    // define the chart data
-    var chartData = {
-        labels: ["January", "February", "March", "April", "May", "June", "July", "August"],
-        datasets: [{
-            label: 'Monthly Data',
-            fill: true,
-            lineTension: 0.1,
-            backgroundColor: "rgba(75,192,192,0.4)",
-            borderColor: "rgba(75,192,192,1)",
-            borderCapStyle: 'butt',
-            borderDash: [],
-            borderDashOffset: 0.0,
-            borderJoinStyle: 'miter',
-            pointBorderColor: "rgba(75,192,192,1)",
-            pointBackgroundColor: "#fff",
-            pointBorderWidth: 1,
-            pointHoverRadius: 5,
-            pointHoverBackgroundColor: "rgba(75,192,192,1)",
-            pointHoverBorderColor: "rgba(220,220,220,1)",
-            pointHoverBorderWidth: 2,
-            pointRadius: 1,
-            pointHitRadius: 10,
-            data: [10, 9, 8, 7, 6, 4, 7, 8],
-            spanGaps: false
-        }]
+    var chartConfig = {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: 'CPU Utilization',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                fill: false,
+                lineTension: 0,
+                data: []
+            }]
+        },
+        options: {
+            title: {
+                display: true,
+                text: 'CPU Utilization'
+            },
+            scales: {
+                xAxes: [{
+                    type: 'realtime',
+                    realtime: {
+                        duration: 600000,
+                        delay: 2000,
+                        pause: false
+                    }
+                }],
+                yAxes: [{
+                    type: 'linear',
+                    display: true,
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Utilization (%)'
+                    },
+                    ticks: {
+                        suggestedMin: 0,
+                        suggestedMax: 100
+                    }
+                }]
+            },
+            tooltips: {
+                mode: 'nearest',
+                intersect: false
+            },
+            hover: {
+                mode: 'nearest',
+                intersect: false
+            },
+            plugins: {
+                streaming: {
+                    frameRate: 30
+                }
+            }
+        }
     }
 
     // get chart canvas
     var ctx = document.getElementById("myChart").getContext("2d");
 
     // create the chart using the chart canvas
-    var myChart = new Chart(ctx, {
-        type: 'line',
-        data: chartData,
+    var myChart = new Chart(ctx, chartConfig);
+
+    return myChart;
+}
+
+function addUtilDataPoint(msg, myChart) {
+    // append the new data to the existing chart data
+    myChart.data.datasets[0].data.push({
+        x: Date.now(),
+        y: msg.util
+    });
+    console.log(JSON.stringify(myChart.data.datasets[0].data));
+
+    // update chart datasets keeping the current animation
+    myChart.update({
+        preservation: true
     });
 }
 
