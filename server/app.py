@@ -33,7 +33,7 @@ class publishThread(threading.Thread):
 
 @app.route('/')
 def index():
-    return render_template('index.html', name='Suhaas')
+    return render_template('dashboard.html', name='Suhaas')
 
 
 @socketio.on('connect')
