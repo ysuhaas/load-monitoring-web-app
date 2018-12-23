@@ -4,7 +4,7 @@ $(document).ready(function () {
     console.log('Connected to server!');
     myChart = drawChart();
 
-    //receive details from server
+    // Register event callback functions
     socket.on('cpuUtil', function (msg) {
         console.log("Received new utilization datapoint: " + msg.util);
         // Construct a moment time object for this timestamp (ISO 8601)
@@ -27,6 +27,12 @@ $(document).ready(function () {
         m = moment(msg.timestamp)
         // Add alert to log
         addAlert(msg, m);
+    });
+    socket.on('stats', function (msg) {
+        // Construct a moment time object for this timestamp (ISO 8601)
+        m = moment(msg.timestamp)
+        // Update stats
+        addStats(msg, m);
     });
 });
 
@@ -203,3 +209,10 @@ function addAlert(msg, timestamp) {
     $(".log ul").prepend(item);
 }
 
+function addStats(msg, timestamp) {
+    if (msg.cpu_avg) {
+        $('#avg-cpu').text(msg.cpu_avg)
+    } else if (msg.load_avg) {
+        $('#avg-load').text(msg.load_avg)
+    }
+}
