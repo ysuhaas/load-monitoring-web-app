@@ -20,6 +20,14 @@ $(document).ready(function () {
         // Add to chart
         addLoadDataPoint(msg, m, myChart);
     });
+
+    socket.on('alarm', function (msg) {
+        console.log("New alarm: " + msg.type);
+        // Construct a moment time object for this timestamp (ISO 8601)
+        m = moment(msg.timestamp)
+        // Add alert to log
+        addAlert(msg, m);
+    });
 });
 
 function drawChart() {
@@ -37,6 +45,7 @@ function drawChart() {
                 fill: false,
                 lineTension: 0,
                 yAxisID: 'y-axis-1',
+                cubicInterpolationMode: 'default',
                 data: []
             },
             {
@@ -46,6 +55,7 @@ function drawChart() {
                 fill: false,
                 lineTension: 0,
                 yAxisID: 'y-axis-2',
+                cubicInterpolationMode: 'default',
                 data: []
             },
             {
@@ -55,6 +65,7 @@ function drawChart() {
                 fill: false,
                 lineTension: 0,
                 yAxisID: 'y-axis-2',
+                cubicInterpolationMode: 'default',
                 data: [],
             },
             {
@@ -64,13 +75,14 @@ function drawChart() {
                 fill: false,
                 lineTension: 0,
                 yAxisID: 'y-axis-2',
+                cubicInterpolationMode: 'default',
                 data: []
             }]
         },
         options: {
             title: {
                 display: true,
-                text: 'CPU Utilization'
+                text: 'CPU Utilization and Load Averages'
             },
             scales: {
                 xAxes: [{
@@ -93,7 +105,8 @@ function drawChart() {
                     ticks: {
                         suggestedMin: 0,
                         suggestedMax: 100,
-                        stepSize: 10
+                        maxTicks: 10,
+                        precision: 2
                     }   
                 },
                 {
@@ -108,7 +121,8 @@ function drawChart() {
                     ticks: {
                         suggestedMin: 0,
                         suggestedMax: 5,
-                        stepSize: 0.5
+                        maxTicks: 10,
+                        precision: 2
                     },
                     util: 'load'
                 }]
@@ -119,11 +133,13 @@ function drawChart() {
             },
             hover: {
                 mode: 'nearest',
-                intersect: false
+                intersect: false,
+                animationDuration: 0
             },
+            responsiveAnimationDuration: 0,
             plugins: {
                 streaming: {
-                    frameRate: 30
+                    frameRate: 10
                 }
             }
         }
@@ -170,5 +186,20 @@ function addLoadDataPoint(msg, timestamp, myChart) {
     myChart.update({
         preservation: true
     });
+}
+
+function addAlert(msg, timestamp) {
+    var item = '';
+    if (msg.start){
+        item += '<li class="alarm">';
+        item += 'High ' + msg.type + ' generated an alarm: ';
+        item += msg.type + ' = ' + msg.value + ' at time: ' + timestamp.format('HH:mm:ss');
+        item += '</li>';
+    } else {
+        item += '<li class="recover">' ;
+        item += 'Alarm for high ' + msg.type + ' recovered at time: ' + timestamp.format('HH:mm:ss');
+        item += '</li>';
+    }
+    $(".log ul").prepend(item);
 }
 
