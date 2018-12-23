@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import time
+import eventlet
 import threading
 import psutil
 from datetime import datetime
@@ -35,60 +36,64 @@ def calcAverage(new_point, point_type):
         return avg
 
 
-class publishThread(threading.Thread):
-    def __init__(self):
-        self.frequency = PUB_FREQ
-        self.cpu_alarm = False
-        self.load_alarm = False
-        super(publishThread, self).__init__()
+frequency = PUB_FREQ
+cpu_alarm = False
+load_alarm = False
 
-    def publishAlarm(self, mode, activate, now):
-        socketio.emit('alarm', {'type': mode, 'start': activate, 'timestamp': now})
 
-    def publishUtilization(self):
-        cpu_util = psutil.cpu_percent()
-        now = datetime.now().isoformat()
-        # print("Utilization at {} is {}".format(now, str(cpu_util)))
-        avg = calcAverage(cpu_util, 'CPU')
-        # print("Running average CPU Util is {}".format(avg))
-        if avg >= CPU_THRESHOLD and not self.cpu_alarm:
-            # print("###CPU alarm triggered.###")
-            self.cpu_alarm = True
-            self.publishAlarm('CPU', True, now)
-        if avg < CPU_THRESHOLD and self.cpu_alarm:
-            # print("###CPU alarm reset.###")
-            self.cpu_alarm = False
-            self.publishAlarm('CPU', False, now)
-        socketio.emit('cpuUtil', {'util': cpu_util, 'timestamp': now})
-        socketio.emit('stats', {'cpu_avg': avg, 'timestamp': now})
+def publishAlarm(mode, activate, now):
+    socketio.emit(
+        'alarm', {'type': mode, 'start': activate, 'timestamp': now})
 
-    def publishLoad(self):
-        load = os.getloadavg()
-        now = datetime.now().isoformat()
-        # print("5 min load at {} is {}".format(now, str(load[1])))
-        avg = calcAverage(load[1], 'Load')
-        # print("Running average load is {}".format(avg))
-        if avg >= LOAD_THRESHOLD and not self.load_alarm:
-            # print("###Load alarm triggered.###")
-            self.load_alarm = True
-            self.publishAlarm('Load', True, now)
-        if avg < LOAD_THRESHOLD and self.load_alarm:
-            # print("###Load alarm reset.###")
-            self.load_alarm = False
-            self.publishAlarm('Load', False, now)
-        socketio.emit('loadAvg', {
-                      'load_one': load[0],
-                      'load_five': load[1],
-                      'load_fifteen': load[2],
-                      'timestamp': now
-                      })
-        socketio.emit('stats', {'load_avg': avg, 'timestamp': now})
 
-    def run(self):
-        while True:
-            self.publishUtilization()
-            self.publishLoad()
-            time.sleep(self.frequency)
+def publishUtilization():
+    global cpu_alarm
+    cpu_util = psutil.cpu_percent()
+    now = datetime.now().isoformat()
+    # print("Utilization at {} is {}".format(now, str(cpu_util)))
+    avg = calcAverage(cpu_util, 'CPU')
+    print("Running average CPU Util is {}".format(avg))
+    if avg >= CPU_THRESHOLD and not cpu_alarm:
+        print("###CPU alarm triggered.###")
+        cpu_alarm = True
+        publishAlarm('CPU', True, now)
+    if avg < CPU_THRESHOLD and cpu_alarm:
+        print("###CPU alarm reset.###")
+        cpu_alarm = False
+        publishAlarm('CPU', False, now)
+    socketio.emit('cpuUtil', {'util': cpu_util, 'timestamp': now})
+    socketio.emit('stats', {'cpu_avg': avg, 'timestamp': now})
+
+
+def publishLoad():
+    global load_alarm
+    load = os.getloadavg()
+    now = datetime.now().isoformat()
+    # print("5 min load at {} is {}".format(now, str(load[1])))
+    avg = calcAverage(load[1], 'Load')
+    print("Running average load is {}".format(avg))
+    if avg >= LOAD_THRESHOLD and not load_alarm:
+        print("###Load alarm triggered.###")
+        load_alarm = True
+        publishAlarm('Load', True, now)
+    if avg < LOAD_THRESHOLD and load_alarm:
+        print("###Load alarm reset.###")
+        load_alarm = False
+        publishAlarm('Load', False, now)
+    socketio.emit('loadAvg', {
+        'load_one': load[0],
+        'load_five': load[1],
+        'load_fifteen': load[2],
+        'timestamp': now
+    })
+    socketio.emit('stats', {'load_avg': avg, 'timestamp': now})
+
+
+def runme():
+    while True:
+        publishUtilization()
+        publishLoad()
+        eventlet.sleep(frequency)
 
 
 @app.route('/')
@@ -99,8 +104,8 @@ def index():
 @socketio.on('connect')
 def on_connect():
     print('Connected to client!')
-    thread = publishThread()
-    thread.start()
+    # thread = publishThread()
+    eventlet.spawn(runme)
 
 
 @socketio.on('disconnect')
