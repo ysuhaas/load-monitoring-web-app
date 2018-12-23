@@ -1,85 +1,127 @@
+import eventlet
+import os
+import psutil
+import time
+from collections import deque
+from datetime import datetime
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-import time
-import eventlet
-import threading
-import psutil
-from datetime import datetime
-from collections import deque
-import os
 
+# Start a Flask server and SocketIO instance
 app = Flask(__name__, static_folder='../static',
             template_folder='../static')
 
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
+cpu_util = psutil.cpu_percent()  # initialize
 
-PUB_FREQ = 10  # resolution of data in (1 point / n seconds)
-AVG_WINDOW = 2  # minutes
-MAX_LEN = PUB_FREQ * 60 * AVG_WINDOW
-cpu_util = psutil.cpu_percent()  # throwaway
-utils_list = deque(maxlen=MAX_LEN)
-loads_list = deque(maxlen=MAX_LEN)
-alarm_list = deque(maxlen=10)
-CPU_THRESHOLD = 75
-LOAD_THRESHOLD = 1
-
-
-def calcAverage(new_point, point_type):
-    if point_type == 'CPU':
-        utils_list.append(new_point)
-        avg = sum(utils_list) / len(utils_list)
-        return avg
-    elif point_type == 'Load':
-        loads_list.append(new_point)
-        avg = sum(loads_list) / len(loads_list)
-        return avg
-
-
-frequency = PUB_FREQ
+"""Constants"""
+# Alarms
 cpu_alarm = False
 load_alarm = False
 
+# Thresholds
+CPU_THRESHOLD = 75
+LOAD_THRESHOLD = 1
 
-def publishAlarm(mode, activate, now):
-    socketio.emit(
-        'alarm', {'type': mode, 'start': activate, 'timestamp': now})
+# Data resolution and retention
+PUB_FREQ = 10  # resolution of data in (1 point / n seconds)
+AVG_WINDOW = 2  # minutes
+MAX_LEN = PUB_FREQ * 60 * AVG_WINDOW  # number of points to store/avg
+
+utils_list = deque(maxlen=MAX_LEN)  # CPU utilization points
+loads_list = deque(maxlen=MAX_LEN)  # Avg. load points
+alarm_list = deque(maxlen=10)  # Previous alarms
+
+
+@app.route('/')
+def dashboard_route():
+    """
+    Return a route to the root template (an HTML template for the dashboard).
+    """
+    return render_template('dashboard.html')
+
+
+@socketio.on('connect')
+def on_connect():
+    """
+    Defines a callback function which is called when the socketIO instance
+    recives a 'connect' message (on each new client connected). Spawns an
+    eventlet thread to start collecting and publishing load data.
+    """
+    print('Connected to client!')
+    eventlet.spawn(publishThreadTarget, PUB_FREQ)
+
+
+@socketio.on('disconnect')
+def on_disconnect():
+    """
+    Defines a callback function which is called when the socketIO instance
+    recives a 'disconnect' message (on each new client disconnected).
+    """
+    print('Disconnected from client!')
+
+
+def publishThreadTarget(wait_time):
+    """
+    Defines a thread to accumulate and publish load data, and sleep for a given
+    amount of time (in seconds), on an infinite loop.
+
+    Parameters:  
+    wait_time (int): Amount of time (seconds) to sleep
+    """
+    while True:
+        publishUtilization()
+        publishLoad()
+        eventlet.sleep(wait_time)
 
 
 def publishUtilization():
+    """
+    Get the current CPU utilization, calculate the new running average,
+    check alarm status, and emit on the socketIO instance the utilization
+    at the current time, the new running average, and an alarm event (if
+    there was a change in alarm state).
+    """
     global cpu_alarm
     cpu_util = psutil.cpu_percent()
     now = datetime.now().isoformat()
     # print("Utilization at {} is {}".format(now, str(cpu_util)))
     avg = calcAverage(cpu_util, 'CPU')
-    print("Running average CPU Util is {}".format(avg))
+    # print("Running average CPU Util is {}".format(avg))
     if avg >= CPU_THRESHOLD and not cpu_alarm:
-        print("###CPU alarm triggered.###")
         cpu_alarm = True
-        publishAlarm('CPU', True, now)
+        socketio.emit('alarm',
+                      {'type': 'CPU', 'start': True, 'timestamp': now})
     if avg < CPU_THRESHOLD and cpu_alarm:
-        print("###CPU alarm reset.###")
         cpu_alarm = False
-        publishAlarm('CPU', False, now)
+        socketio.emit('alarm',
+                      {'type': 'CPU', 'start': False, 'timestamp': now})
     socketio.emit('cpuUtil', {'util': cpu_util, 'timestamp': now})
     socketio.emit('stats', {'cpu_avg': avg, 'timestamp': now})
 
 
 def publishLoad():
+    """
+    Get the current load average, calculate the new running average (using
+    the 5-minute average), check alarm status, and emit on the socketIO
+    instance the load average measured at the current time, the new running
+    average, and an alarm event (if there was a change in alarm state).
+    """
     global load_alarm
     load = os.getloadavg()
     now = datetime.now().isoformat()
     # print("5 min load at {} is {}".format(now, str(load[1])))
     avg = calcAverage(load[1], 'Load')
-    print("Running average load is {}".format(avg))
+    # print("Running average load is {}".format(avg))
     if avg >= LOAD_THRESHOLD and not load_alarm:
-        print("###Load alarm triggered.###")
         load_alarm = True
-        publishAlarm('Load', True, now)
+        socketio.emit('alarm',
+                      {'type': 'Load', 'start': True, 'timestamp': now})
     if avg < LOAD_THRESHOLD and load_alarm:
-        print("###Load alarm reset.###")
         load_alarm = False
-        publishAlarm('Load', False, now)
+        socketio.emit('alarm',
+                      {'type': 'CPU', 'start': False, 'timestamp': now})
     socketio.emit('loadAvg', {
         'load_one': load[0],
         'load_five': load[1],
@@ -89,28 +131,23 @@ def publishLoad():
     socketio.emit('stats', {'load_avg': avg, 'timestamp': now})
 
 
-def runme():
-    while True:
-        publishUtilization()
-        publishLoad()
-        eventlet.sleep(frequency)
+def calcAverage(new_point, point_type):
+    """
+    Given a new point and its type, add it to the dataset and return the new
+    average for the measurement.
 
-
-@app.route('/')
-def index():
-    return render_template('dashboard.html')
-
-
-@socketio.on('connect')
-def on_connect():
-    print('Connected to client!')
-    # thread = publishThread()
-    eventlet.spawn(runme)
-
-
-@socketio.on('disconnect')
-def on_connect():
-    print('Disconnected from client!')
+    Parameters:  
+    new_point (float): New data point to add  
+    point_type(str): Type of measurement ('CPU' or 'Load')
+    """
+    if point_type == 'CPU':
+        utils_list.append(new_point)
+        avg = sum(utils_list) / len(utils_list)
+        return avg
+    elif point_type == 'Load':
+        loads_list.append(new_point)
+        avg = sum(loads_list) / len(loads_list)
+        return avg
 
 
 if __name__ == "__main__":
