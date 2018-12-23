@@ -7,10 +7,10 @@ $(document).ready(function () {
     //receive details from server
     socket.on('cpuUtil', function (msg) {
         console.log("Received new utilization datapoint: " + msg.util);
-        // Construct a moment time object for this timestamp
-
+        // Construct a moment time object for this timestamp (ISO 8601)
+        m = moment(msg.timestamp)
         // Add to chart
-        addUtilDataPoint(msg, myChart);
+        addUtilDataPoint(msg.util, m, myChart);
     });
 });
 
@@ -83,13 +83,13 @@ function drawChart() {
     return myChart;
 }
 
-function addUtilDataPoint(msg, myChart) {
+function addUtilDataPoint(util, timestamp, myChart) {
     // append the new data to the existing chart data
     myChart.data.datasets[0].data.push({
-        x: Date.now(),
-        y: msg.util
+        x: timestamp,
+        y: util
     });
-    console.log(JSON.stringify(myChart.data.datasets[0].data));
+    // console.log(JSON.stringify(myChart.data.datasets[0].data));
 
     // update chart datasets keeping the current animation
     myChart.update({

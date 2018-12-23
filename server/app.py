@@ -16,15 +16,15 @@ cpu_util = psutil.cpu_percent()
 
 class publishThread(threading.Thread):
     def __init__(self):
-        self.frequency = 1
+        self.frequency = 2
         super(publishThread, self).__init__()
 
     def publishUtilization(self):
         while True:
             cpu_util = psutil.cpu_percent()
-            now = datetime.now()
-            print("Utilization at {} is {}".format(now.ctime(), str(cpu_util)))
-            socketio.emit('cpuUtil', {'util': cpu_util})
+            now = datetime.now().isoformat()
+            print("Utilization at {} is {}".format(now, str(cpu_util)))
+            socketio.emit('cpuUtil', {'util': cpu_util, 'timestamp': now})
             time.sleep(self.frequency)
 
     def run(self):
