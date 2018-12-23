@@ -135,7 +135,18 @@ function drawChart() {
             },
             tooltips: {
                 mode: 'nearest',
-                intersect: false
+                intersect: false,
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        var label = data.datasets[tooltipItem.datasetIndex].label || '';
+    
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += Math.round(tooltipItem.yLabel * 100) / 100;
+                        return label;
+                    }
+                }
             },
             hover: {
                 mode: 'nearest',
@@ -211,8 +222,8 @@ function addAlert(msg, timestamp) {
 
 function addStats(msg, timestamp) {
     if (msg.cpu_avg) {
-        $('#avg-cpu').text(msg.cpu_avg)
+        $('#avg-cpu').text(Math.round(msg.cpu_avg * 100) / 100)
     } else if (msg.load_avg) {
-        $('#avg-load').text(msg.load_avg)
+        $('#avg-load').text(Math.round(msg.load_avg * 100) / 100)
     }
 }
