@@ -12,6 +12,14 @@ $(document).ready(function () {
         // Add to chart
         addUtilDataPoint(msg.util, m, myChart);
     });
+
+    socket.on('loadAvg', function (msg) {
+        console.log("Received new load datapoint: " + msg.load_one);
+        // Construct a moment time object for this timestamp (ISO 8601)
+        m = moment(msg.timestamp)
+        // Add to chart
+        addLoadDataPoint(msg, m, myChart);
+    });
 });
 
 function drawChart() {
@@ -28,6 +36,34 @@ function drawChart() {
                 borderColor: 'rgba(255, 99, 132, 1)',
                 fill: false,
                 lineTension: 0,
+                yAxisID: 'y-axis-1',
+                data: []
+            },
+            {
+                label: 'Load Average (1 min)',
+                backgroundColor: 'rgba(99, 164, 255, 0.5)',
+                borderColor: 'rgba(99, 164, 255, 1)',
+                fill: false,
+                lineTension: 0,
+                yAxisID: 'y-axis-2',
+                data: []
+            },
+            {
+                label: 'Load Average (5 min)',
+                backgroundColor: 'rgba(133, 255, 99, 0.5)',
+                borderColor: 'rgba(133, 255, 99, 1)',
+                fill: false,
+                lineTension: 0,
+                yAxisID: 'y-axis-2',
+                data: [],
+            },
+            {
+                label: 'Load Average (15 min)',
+                backgroundColor: 'rgba(255, 161, 99, 0.5)',
+                borderColor: 'rgba(255, 161, 99, 1)',
+                fill: false,
+                lineTension: 0,
+                yAxisID: 'y-axis-2',
                 data: []
             }]
         },
@@ -46,16 +82,35 @@ function drawChart() {
                     }
                 }],
                 yAxes: [{
+                    id: 'y-axis-1',
                     type: 'linear',
                     display: true,
                     scaleLabel: {
                         display: true,
                         labelString: 'Utilization (%)'
                     },
+                    position: 'left',
                     ticks: {
                         suggestedMin: 0,
-                        suggestedMax: 100
-                    }
+                        suggestedMax: 100,
+                        stepSize: 10
+                    }   
+                },
+                {
+                    id: 'y-axis-2',
+                    type: 'linear',
+                    display: true,
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Load Average'
+                    },
+                    position: 'right',
+                    ticks: {
+                        suggestedMin: 0,
+                        suggestedMax: 5,
+                        stepSize: 0.5
+                    },
+                    util: 'load'
                 }]
             },
             tooltips: {
@@ -89,7 +144,27 @@ function addUtilDataPoint(util, timestamp, myChart) {
         x: timestamp,
         y: util
     });
-    // console.log(JSON.stringify(myChart.data.datasets[0].data));
+
+    // update chart datasets keeping the current animation
+    myChart.update({
+        preservation: true
+    });
+}
+
+function addLoadDataPoint(msg, timestamp, myChart) {
+    // append the new data to the existing chart data
+    myChart.data.datasets[1].data.push({
+        x: timestamp,
+        y: msg.load_one
+    });
+    myChart.data.datasets[2].data.push({
+        x: timestamp,
+        y: msg.load_five
+    });
+    myChart.data.datasets[3].data.push({
+        x: timestamp,
+        y: msg.load_fifteen
+    });
 
     // update chart datasets keeping the current animation
     myChart.update({
