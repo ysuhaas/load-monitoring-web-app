@@ -16,6 +16,8 @@ app = Flask(__name__, static_folder='../static',
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 cpu_util = psutil.cpu_percent()  # initialize
+client_count = 0
+pub_thread = None
 
 """Constants"""
 # Alarms
@@ -48,18 +50,34 @@ def dashboard_route():
 def on_connect():
     """
     Defines a callback function which is called when the socketIO instance
-    recives a 'connect' message (on each new client connected).
+    recives a 'connect' message (on each new client connected). Spawns a 
+    publish thread when the first client connects.
     """
-    print('Connected to client!')
+    global client_count
+    global pub_thread
+    client_count += 1
+
+    if client_count == 1:
+        pub_thread = eventlet.spawn(publishThreadTarget, PUB_FREQ)
+    print('Connected to client #' + str(client_count))
 
 
 @socketio.on('disconnect')
 def on_disconnect():
     """
     Defines a callback function which is called when the socketIO instance
-    recives a 'disconnect' message (on each new client disconnected).
+    recives a 'disconnect' message (on each new client disconnected). Kills
+    the publish thread when the last client has disconnected.
     """
-    print('Disconnected from client!')
+    global client_count
+    global pub_thread
+    client_count -= 1
+
+    if client_count == 0:
+        print('Disconnected from the last client!')
+        pub_thread.kill()
+    else:
+        print('Disconnected from a client!')
 
 
 @socketio.on('loadTest')
@@ -125,10 +143,12 @@ def publishUtilization():
     avg = calcAverage(cpu_util, 'CPU')
     # print("Running average CPU Util is {}".format(avg))
     if avg >= CPU_THRESHOLD and not cpu_alarm:
+        print("CPU Alarm START")
         cpu_alarm = True
         socketio.emit('alarm',
                       {'type': 'CPU', 'value': avg, 'start': True, 'timestamp': now})
     if avg < CPU_THRESHOLD and cpu_alarm:
+        print("CPU Alarm RECOVER")
         cpu_alarm = False
         socketio.emit('alarm',
                       {'type': 'CPU', 'value': avg, 'start': False, 'timestamp': now})
@@ -146,14 +166,16 @@ def publishLoad():
     global load_alarm
     load = os.getloadavg()
     now = datetime.now().isoformat()
-    # print("5 min load at {} is {}".format(now, str(load[1])))
+    # print("1 min load at {} is {}".format(now, str(load[])))
     avg = calcAverage(load[0], 'Load')
     # print("Running average load is {}".format(avg))
     if load[0] >= LOAD_THRESHOLD and not load_alarm:
+        print("Load Alarm START")
         load_alarm = True
         socketio.emit('alarm',
                       {'type': 'Load', 'value': load[0], 'start': True, 'timestamp': now})
     if load[0] < LOAD_THRESHOLD and load_alarm:
+        print("Load Alarm RECOVER")
         load_alarm = False
         socketio.emit('alarm',
                       {'type': 'Load', 'value': load[0], 'start': False, 'timestamp': now})
@@ -184,7 +206,10 @@ def calcAverage(new_point, point_type):
         avg = sum(loads_list) / len(loads_list)
         return avg
 
-eventlet.spawn(publishThreadTarget, PUB_FREQ)
+print(cpu_count())
+print(os.getloadavg())
+print(psutil.cpu_count(logical=False))
+
 if __name__ == "__main__":
     # app.run(host='0.0.0.0', port=5000, debug=True)
     # socketio.run(app)

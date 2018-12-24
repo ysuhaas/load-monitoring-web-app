@@ -1,8 +1,13 @@
 const PUB_FREQ = 10;
 const DISP_WINDOW = 10;
-const MAX_LENGTH = PUB_FREQ * 60 * DISP_WINDOW; 
+const MAX_LENGTH = 60 / PUB_FREQ * DISP_WINDOW; 
 $(document).ready(function () {
 
+    if (document.domain === "load-monitoring-test.herokuapp.com") {
+        console.log("Disabling load test");
+        $(".btn").text("Load Test Disabled on Heroku");
+        $(".btn").prop("disabled", true);
+    }
     // Connect to SocketIO server (local)
     var socket = io.connect('http://' + document.domain + ':' + location.port);
     console.log('Connected to server!');
@@ -116,7 +121,7 @@ function drawChart() {
                         unitStepSize: 5
                     },
                     ticks: {
-                        autoSkip: false,
+                        autoSkip: true,
                         maxTicksLimit: 12
                     }
                 }],
