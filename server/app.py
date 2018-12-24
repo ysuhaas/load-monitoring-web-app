@@ -1,13 +1,12 @@
 import eventlet
 import os
 import psutil
-import time
-import threading
 from collections import deque
 from datetime import datetime
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from multiprocessing import Pool, cpu_count
+from threading import Timer
 
 # Start a Flask server and SocketIO instance
 app = Flask(__name__, static_folder='../static',
@@ -64,6 +63,11 @@ def on_disconnect():
 
 @socketio.on('loadTest')
 def start_load_test(message):
+    """
+    Defines a callback function which is called when the client requests
+    a load test. Start a pool of (traditional, non-eventlet) threads that
+    will cause increased system load, and terminate after some time.
+    """
     processes = cpu_count()
     pool = Pool(processes)
     print("Starting the load test.")
@@ -73,6 +77,12 @@ def start_load_test(message):
 
 
 def end_load_test(pool):
+    """
+    End the ongoing load test by killing all the spawned threads
+
+    Parameters:  
+    pool (multiprocessing.Pool): Thread pool of spawned load test threads
+    """
     pool.terminate()
     print("Finished the load test.")
 
