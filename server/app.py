@@ -1,12 +1,13 @@
 import eventlet
 import os
 import psutil
+import threading
 from collections import deque
 from datetime import datetime
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from multiprocessing import Pool, cpu_count
-from threading import Timer
+
 
 # Start a Flask server and SocketIO instance
 app = Flask(__name__, static_folder='../static',
@@ -23,11 +24,11 @@ load_alarm = False
 
 # Thresholds
 CPU_THRESHOLD = 75
-LOAD_THRESHOLD = 1
+LOAD_THRESHOLD = psutil.cpu_count(logical=False)
 
 # Data resolution and retention
 PUB_FREQ = 5  # resolution of data in (1 point / n seconds)
-LOAD_TEST_DURATION = 20.0  # seconds
+LOAD_TEST_DURATION = 120.0  # seconds
 AVG_WINDOW = 2  # minutes
 MAX_LEN = PUB_FREQ * 60 * AVG_WINDOW  # number of points to store/avg
 
@@ -138,7 +139,7 @@ def publishUtilization():
 def publishLoad():
     """
     Get the current load average, calculate the new running average (using
-    the 5-minute average), check alarm status, and emit on the socketIO
+    the 1-minute average), check alarm status, and emit on the socketIO
     instance the load average measured at the current time, the new running
     average, and an alarm event (if there was a change in alarm state).
     """
@@ -146,16 +147,16 @@ def publishLoad():
     load = os.getloadavg()
     now = datetime.now().isoformat()
     # print("5 min load at {} is {}".format(now, str(load[1])))
-    avg = calcAverage(load[1], 'Load')
+    avg = calcAverage(load[0], 'Load')
     # print("Running average load is {}".format(avg))
-    if avg >= LOAD_THRESHOLD and not load_alarm:
+    if load[0] >= LOAD_THRESHOLD and not load_alarm:
         load_alarm = True
         socketio.emit('alarm',
-                      {'type': 'Load', 'value': avg, 'start': True, 'timestamp': now})
-    if avg < LOAD_THRESHOLD and load_alarm:
+                      {'type': 'Load', 'value': load[0], 'start': True, 'timestamp': now})
+    if load[0] < LOAD_THRESHOLD and load_alarm:
         load_alarm = False
         socketio.emit('alarm',
-                      {'type': 'CPU', 'value': avg, 'start': False, 'timestamp': now})
+                      {'type': 'Load', 'value': load[0], 'start': False, 'timestamp': now})
     socketio.emit('loadAvg', {
         'load_one': load[0],
         'load_five': load[1],
