@@ -184,9 +184,8 @@ def calcAverage(new_point, point_type):
         avg = sum(loads_list) / len(loads_list)
         return avg
 
-eventlet.spawn(publishThreadTarget, PUB_FREQ)
+
 if __name__ == "__main__":
     # app.run(host='0.0.0.0', port=5000, debug=True)
-    # socketio.run(app)
-    pass
-    
+    eventlet.spawn(publishThreadTarget, PUB_FREQ)
+    socketio.run(app)
