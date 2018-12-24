@@ -76,6 +76,7 @@ def on_disconnect():
     if client_count == 0:
         print('Disconnected from the last client!')
         pub_thread.kill()
+        resetState()
     else:
         print('Disconnected from a client!')
 
@@ -93,6 +94,18 @@ def start_load_test(message):
     pool.map_async(loadTestTarget, range(processes))
     t = threading.Timer(LOAD_TEST_DURATION, end_load_test, args=[pool])
     t.start()
+
+
+def resetState():
+    """
+    Resets the alarm and data state to the default.
+    """
+    global cpu_alarm
+    global load_alarm
+    cpu_alarm = False
+    load_alarm = False
+    loads_list.clear()
+    utils_list.clear()
 
 
 def end_load_test(pool):
