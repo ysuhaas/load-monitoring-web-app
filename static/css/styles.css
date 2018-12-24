@@ -54,6 +54,11 @@ h3{
     max-height: 20px;
 }
 
+.cpu-util-graph {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
 .log ul {
     padding-left: 20px;
     padding-top: 10px;
@@ -66,3 +71,15 @@ h3{
     color: #CD594A;
     font-weight: bold;
 }
+
+.btn {
+    background-color: rgb(143, 62, 197); 
+    border: none; 
+    color: white; 
+    font-size: 16px; 
+    cursor: pointer; 
+  }
+
+  .btn:hover {
+    background-color: rgb(115, 34, 169);
+  }

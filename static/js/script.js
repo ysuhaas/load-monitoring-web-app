@@ -1,12 +1,14 @@
 $(document).ready(function () {
-    // Connect to SocketIO server
+
+    // Connect to SocketIO server (local)
     var socket = io.connect('http://' + document.domain + ':' + location.port);
     console.log('Connected to server!');
     myChart = drawChart();
 
-    // Register event callback functions
+    // Register socketIO callback functions:
+
     socket.on('cpuUtil', function (msg) {
-        console.log("Received new utilization datapoint: " + msg.util);
+        // console.log("Received new utilization datapoint: " + msg.util);
         // Construct a moment time object for this timestamp (ISO 8601)
         m = moment(msg.timestamp)
         // Add to chart
@@ -14,7 +16,7 @@ $(document).ready(function () {
     });
 
     socket.on('loadAvg', function (msg) {
-        console.log("Received new load datapoint: " + msg.load_one);
+        // console.log("Received new load datapoint: " + msg.load_one);
         // Construct a moment time object for this timestamp (ISO 8601)
         m = moment(msg.timestamp)
         // Add to chart
@@ -28,17 +30,23 @@ $(document).ready(function () {
         // Add alert to log
         addAlert(msg, m);
     });
+
     socket.on('stats', function (msg) {
         // Construct a moment time object for this timestamp (ISO 8601)
         m = moment(msg.timestamp)
         // Update stats
         addStats(msg, m);
     });
+
+    $(".btn").click(function(){
+        console.log('Sending a test message...');
+        socket.emit('loadTest', 'Testing...');
+    }); 
+
 });
 
 function drawChart() {
-    // Global parameters:
-    // do not resize the chart canvas when its container does (keep at 600x400px)
+    // Enable responsive resizing 
     Chart.defaults.global.responsive = true;
 
     var chartConfig = {
@@ -113,7 +121,7 @@ function drawChart() {
                         suggestedMax: 100,
                         maxTicks: 10,
                         precision: 2
-                    }   
+                    }
                 },
                 {
                     id: 'y-axis-2',
@@ -137,9 +145,9 @@ function drawChart() {
                 mode: 'nearest',
                 intersect: false,
                 callbacks: {
-                    label: function(tooltipItem, data) {
+                    label: function (tooltipItem, data) {
                         var label = data.datasets[tooltipItem.datasetIndex].label || '';
-    
+
                         if (label) {
                             label += ': ';
                         }
@@ -207,13 +215,13 @@ function addLoadDataPoint(msg, timestamp, myChart) {
 
 function addAlert(msg, timestamp) {
     var item = '';
-    if (msg.start){
-        item += '<li class="alarm">';
+    if (msg.start) {
+        item += '<li class="alarm"><span class="fa-li"><i class="fas fa-exclamation-circle"></i></span>';
         item += 'High ' + msg.type + ' generated an alarm: ';
-        item += msg.type + ' = ' + msg.value + ' at time: ' + timestamp.format('HH:mm:ss');
+        item += msg.type + ' = ' + Math.round(msg.value * 100)/100 + ' at time: ' + timestamp.format('HH:mm:ss');
         item += '</li>';
     } else {
-        item += '<li class="recover">' ;
+        item += '<li class="recover"><span class="fa-li"><i class="fas fa-check"></i></span>';
         item += 'Alarm for high ' + msg.type + ' recovered at time: ' + timestamp.format('HH:mm:ss');
         item += '</li>';
     }

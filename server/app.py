@@ -2,10 +2,12 @@ import eventlet
 import os
 import psutil
 import time
+import threading
 from collections import deque
 from datetime import datetime
 from flask import Flask, render_template
 from flask_socketio import SocketIO
+from multiprocessing import Pool, cpu_count
 
 # Start a Flask server and SocketIO instance
 app = Flask(__name__, static_folder='../static',
@@ -25,13 +27,13 @@ CPU_THRESHOLD = 75
 LOAD_THRESHOLD = 1
 
 # Data resolution and retention
-PUB_FREQ = 10  # resolution of data in (1 point / n seconds)
+PUB_FREQ = 5  # resolution of data in (1 point / n seconds)
+LOAD_TEST_DURATION = 20.0  # seconds
 AVG_WINDOW = 2  # minutes
 MAX_LEN = PUB_FREQ * 60 * AVG_WINDOW  # number of points to store/avg
 
 utils_list = deque(maxlen=MAX_LEN)  # CPU utilization points
 loads_list = deque(maxlen=MAX_LEN)  # Avg. load points
-alarm_list = deque(maxlen=10)  # Previous alarms
 
 
 @app.route('/')
@@ -60,6 +62,30 @@ def on_disconnect():
     recives a 'disconnect' message (on each new client disconnected).
     """
     print('Disconnected from client!')
+
+
+@socketio.on('loadTest')
+def start_load_test(message):
+    processes = cpu_count()
+    pool = Pool(processes)
+    print("Starting the load test.")
+    pool.map_async(loadTestTarget, range(processes))
+    t = threading.Timer(LOAD_TEST_DURATION, end_load_test, args=[pool])
+    t.start()
+
+
+def end_load_test(pool):
+    pool.terminate()
+    print("Finished the load test.")
+
+
+def loadTestTarget(x):
+    """
+    Defines a thread to repeat an arbitrary operation to increase load and
+    CPU utilization.
+    """
+    while True:
+        x * x
 
 
 def publishThreadTarget(wait_time):
@@ -92,11 +118,11 @@ def publishUtilization():
     if avg >= CPU_THRESHOLD and not cpu_alarm:
         cpu_alarm = True
         socketio.emit('alarm',
-                      {'type': 'CPU', 'start': True, 'timestamp': now})
+                      {'type': 'CPU', 'value': avg, 'start': True, 'timestamp': now})
     if avg < CPU_THRESHOLD and cpu_alarm:
         cpu_alarm = False
         socketio.emit('alarm',
-                      {'type': 'CPU', 'start': False, 'timestamp': now})
+                      {'type': 'CPU', 'value': avg, 'start': False, 'timestamp': now})
     socketio.emit('cpuUtil', {'util': cpu_util, 'timestamp': now})
     socketio.emit('stats', {'cpu_avg': avg, 'timestamp': now})
 
@@ -117,11 +143,11 @@ def publishLoad():
     if avg >= LOAD_THRESHOLD and not load_alarm:
         load_alarm = True
         socketio.emit('alarm',
-                      {'type': 'Load', 'start': True, 'timestamp': now})
+                      {'type': 'Load', 'value': avg, 'start': True, 'timestamp': now})
     if avg < LOAD_THRESHOLD and load_alarm:
         load_alarm = False
         socketio.emit('alarm',
-                      {'type': 'CPU', 'start': False, 'timestamp': now})
+                      {'type': 'CPU', 'value': avg, 'start': False, 'timestamp': now})
     socketio.emit('loadAvg', {
         'load_one': load[0],
         'load_five': load[1],
