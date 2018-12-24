@@ -48,11 +48,9 @@ def dashboard_route():
 def on_connect():
     """
     Defines a callback function which is called when the socketIO instance
-    recives a 'connect' message (on each new client connected). Spawns an
-    eventlet thread to start collecting and publishing load data.
+    recives a 'connect' message (on each new client connected).
     """
     print('Connected to client!')
-    eventlet.spawn(publishThreadTarget, PUB_FREQ)
 
 
 @socketio.on('disconnect')
@@ -178,4 +176,5 @@ def calcAverage(new_point, point_type):
 
 if __name__ == "__main__":
     # app.run(host='0.0.0.0', port=5000, debug=True)
+    eventlet.spawn(publishThreadTarget, PUB_FREQ)
     socketio.run(app)
