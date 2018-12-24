@@ -72,14 +72,21 @@ h3{
     font-weight: bold;
 }
 
-.btn {
+.btn:enabled {
     background-color: rgb(143, 62, 197); 
     border: none; 
     color: white; 
     font-size: 16px; 
     cursor: pointer; 
   }
-
-  .btn:hover {
+  .btn:disabled {
+    background-color: rgba(143, 62, 197, 0.5); 
+    border: none; 
+    color: white; 
+    font-size: 16px; 
+    cursor: not-allowed; 
+  }
+  .btn:hover:enabled {
     background-color: rgb(115, 34, 169);
+    color: white;
   }

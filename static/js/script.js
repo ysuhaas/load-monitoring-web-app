@@ -39,8 +39,13 @@ $(document).ready(function () {
     });
 
     $(".btn").click(function(){
-        console.log('Sending a test message...');
-        socket.emit('loadTest', 'Testing...');
+        console.log('Sending a load test request');
+        socket.emit('loadTest', 'Client requests a load test');
+        var button = $(this)
+        button.prop('disabled', true);
+        setTimeout(function(){
+            button.prop('disabled', false);
+        }, 125 * 1000);
     }); 
 
 });
