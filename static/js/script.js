@@ -1,3 +1,6 @@
+const PUB_FREQ = 10;
+const DISP_WINDOW = 10;
+const MAX_LENGTH = PUB_FREQ * 60 * DISP_WINDOW; 
 $(document).ready(function () {
 
     // Connect to SocketIO server (local)
@@ -105,11 +108,16 @@ function drawChart() {
             },
             scales: {
                 xAxes: [{
-                    type: 'realtime',
-                    realtime: {
-                        duration: 600000,
-                        delay: 2000,
-                        pause: false
+                    type: 'time',
+                    time: {
+                        round: 'second',
+                        tooltipFormat: 'h:mm:ss a',
+                        unit: 'second',
+                        unitStepSize: 5
+                    },
+                    ticks: {
+                        autoSkip: false,
+                        maxTicksLimit: 12
                     }
                 }],
                 yAxes: [{
@@ -166,12 +174,6 @@ function drawChart() {
                 intersect: false,
                 animationDuration: 0
             },
-            responsiveAnimationDuration: 0,
-            plugins: {
-                streaming: {
-                    frameRate: 10
-                }
-            }
         }
     }
 
@@ -185,6 +187,10 @@ function drawChart() {
 }
 
 function addUtilDataPoint(util, timestamp, myChart) {
+
+    if (myChart.data.datasets[0].data.length == MAX_LENGTH) {
+        myChart.data.datasets[0].data.shift();
+    }
     // append the new data to the existing chart data
     myChart.data.datasets[0].data.push({
         x: timestamp,
@@ -199,6 +205,15 @@ function addUtilDataPoint(util, timestamp, myChart) {
 
 function addLoadDataPoint(msg, timestamp, myChart) {
     // append the new data to the existing chart data
+    if (myChart.data.datasets[1].data.length == MAX_LENGTH) {
+        myChart.data.datasets[1].data.shift();
+    }
+    if (myChart.data.datasets[2].data.length == MAX_LENGTH) {
+        myChart.data.datasets[2].data.shift();
+    }
+    if (myChart.data.datasets[3].data.length == MAX_LENGTH) {
+        myChart.data.datasets[3].data.shift();
+    }
     myChart.data.datasets[1].data.push({
         x: timestamp,
         y: msg.load_one

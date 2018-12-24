@@ -27,14 +27,14 @@ CPU_THRESHOLD = 75
 LOAD_THRESHOLD = psutil.cpu_count(logical=False)
 
 # Data resolution and retention
-PUB_FREQ = 5  # resolution of data in (1 point / n seconds)
+PUB_FREQ = 10  # resolution of data in (1 point / n seconds)
 LOAD_TEST_DURATION = 120.0  # seconds
 AVG_WINDOW = 2  # minutes
 MAX_LEN = PUB_FREQ * 60 * AVG_WINDOW  # number of points to store/avg
 
 utils_list = deque(maxlen=MAX_LEN)  # CPU utilization points
 loads_list = deque(maxlen=MAX_LEN)  # Avg. load points
-
+# TODO add recent alarm store and load
 
 @app.route('/')
 def dashboard_route():
