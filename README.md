@@ -34,7 +34,11 @@ python3 server_monitor.py
 
 ### Running
 
-Now, in a web browser, simply navigate to [http://127.0.0.1/5000](http://127.0.0.1/5000). You should be able to see data streaming. Note that you can enable/disable data series on the graph by clicking on the label on the legend above the graph.
+Now, in a web browser, simply navigate to [http://localhost:5000/](http://localhost:5000/). You should be able to see data streaming. Note that you can enable/disable data series on the graph by clicking on the label on the legend above the graph.
+
+Screenshot of app running on Heroku:
+
+![](static/images/heroku-ss.png)
 
 
 ## Implementation
