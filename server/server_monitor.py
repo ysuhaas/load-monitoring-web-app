@@ -16,7 +16,7 @@ app = Flask(__name__, static_folder='../static',
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 cpu_util = psutil.cpu_percent()  # initialize
-client_count = 0
+first_client_connect = True
 pub_thread = None
 
 """Constants"""
@@ -53,32 +53,23 @@ def on_connect():
     recives a 'connect' message (on each new client connected). Spawns a 
     publish thread when the first client connects.
     """
-    global client_count
+    global first_client_connect
     global pub_thread
-    client_count += 1
 
-    if client_count == 1:
+    if first_client_connect:
         pub_thread = eventlet.spawn(publishThreadTarget, PUB_FREQ)
-    print('Connected to client #' + str(client_count))
+        first_client_connect = False
+    print('Connected to client!')
 
 
 @socketio.on('disconnect')
 def on_disconnect():
     """
     Defines a callback function which is called when the socketIO instance
-    recives a 'disconnect' message (on each new client disconnected). Kills
-    the publish thread when the last client has disconnected.
+    recives a 'disconnect' message (on each new client disconnected). 
     """
-    global client_count
-    global pub_thread
-    client_count -= 1
 
-    if client_count == 0:
-        print('Disconnected from the last client!')
-        pub_thread.kill()
-        resetState()
-    else:
-        print('Disconnected from a client!')
+    print('Disconnected from a client!')
 
 
 @socketio.on('loadTest')
@@ -223,6 +214,8 @@ print(cpu_count())
 print(os.getloadavg())
 print(psutil.cpu_count(logical=False))
 
+# eventlet.spawn(publishThreadTarget, PUB_FREQ)
 if __name__ == "__main__":
     # app.run(host='0.0.0.0', port=5000, debug=True)
-    socketio.run(app)
+    # socketio.run(app)
+    pass
