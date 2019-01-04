@@ -217,5 +217,5 @@ print(psutil.cpu_count(logical=False))
 # eventlet.spawn(publishThreadTarget, PUB_FREQ)
 if __name__ == "__main__":
     # app.run(host='0.0.0.0', port=5000, debug=True)
-    # socketio.run(app)
+    socketio.run(app)
     pass
